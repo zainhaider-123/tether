@@ -1,0 +1,27 @@
+{
+  "name": "tether",
+  "version": "1.0.0",
+  "description": "A language-agnostic CLI/TUI tool that manages skills like a package manager.",
+  "type": "module",
+  "bin": {
+    "tether": "bin/tether.js"
+  },
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node bin/tether.js",
+    "typecheck": "tsc --noEmit",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "smol-toml": "^1.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "typescript": "^5.5.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
