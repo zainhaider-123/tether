@@ -1,17 +1,37 @@
 import type { CliArgs } from '../cli.js'
-import { loadProjectConfig } from '../config.js'
+import { addSkillToProjectConfig, loadProjectConfig } from '../config.js'
 import { readMetadata, readSkillMd, skillIsInstalled, skillStorePath } from '../store.js'
 import type { ResolvedSkill } from '../skill.js'
 
 export async function useCommand(args: CliArgs): Promise<void> {
   const format = args.flags['format'] ?? 'universal'
-  const project = loadProjectConfig()
+  const skillArg = args.positional[0]
+
+  let project = loadProjectConfig()
   if (!project) {
     console.error('✗ No tether.toml found in current directory. Run `tether init` first.')
     process.exitCode = 1
     return
   }
-  if (project.skills.length === 0) {
+
+  if (skillArg) {
+    if (!skillIsInstalled(skillArg)) {
+      console.error(`✗ ${skillArg} is not installed. Run \`tether install ${skillArg}\` first.`)
+      process.exitCode = 1
+      return
+    }
+    const added = addSkillToProjectConfig(skillArg)
+    if (added) console.error(`✓ Added ${skillArg} to ./tether.toml`)
+    project = loadProjectConfig()
+    if (!project) {
+      console.error('✗ Failed to reload ./tether.toml')
+      process.exitCode = 1
+      return
+    }
+  }
+
+  const declared = project!.skills
+  if (declared.length === 0) {
     console.error('✗ No skills declared in ./tether.toml')
     process.exitCode = 1
     return
@@ -19,7 +39,7 @@ export async function useCommand(args: CliArgs): Promise<void> {
 
   const resolved: ResolvedSkill[] = []
   const missing: string[] = []
-  for (const name of project.skills) {
+  for (const name of declared) {
     if (!skillIsInstalled(name)) {
       missing.push(name)
       continue

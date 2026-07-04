@@ -8,8 +8,10 @@
   },
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsc",
-    "dev": "tsc --watch",
+    "build": "npm run build:tsc && npm run build:copy",
+    "build:tsc": "tsc",
+    "build:copy": "cp bin/tether.js dist/",
+    "dev": "npm run build && npm uninstall -g tether --force && npm install -g .",
     "start": "node bin/tether.js",
     "typecheck": "tsc --noEmit",
     "lint": "tsc --noEmit"

@@ -153,7 +153,8 @@ Commands:
   install <skill> [src]   Install a skill into the store
   uninstall <skill>       Remove a skill from the store
   list                    List installed skills
-  use [--format <fmt>]    Resolve skills from tether.toml and output their context
+  use [skill] [--format <fmt>]    Resolve skills from tether.toml and output their context
+                                  (passing a skill auto-adds it to tether.toml)
 
 Options:
   --tui                   Launches the interactive TUI (default if no subcommand)

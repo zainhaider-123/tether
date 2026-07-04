@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join, resolve } from 'node:path'
 import * as TOML from 'smol-toml'
@@ -57,6 +57,22 @@ export function loadProjectConfig(): ProjectConfig | null {
   const parsed = TOML.parse(text) as unknown as ProjectConfig
   if (!Array.isArray(parsed.skills)) parsed.skills = []
   return parsed
+}
+
+export function addSkillToProjectConfig(name: string): boolean {
+  const path = projectConfigPath()
+  if (!existsSync(path)) return false
+  const text = readFileSync(path, 'utf8')
+  const parsed = TOML.parse(text) as unknown as ProjectConfig
+  const skills = Array.isArray(parsed.skills) ? parsed.skills : []
+  if (skills.includes(name)) return false
+
+  const newSkills = [...skills, name]
+  const formatted = newSkills.map((s) => `"${s}"`).join(', ')
+  const replaced = text.replace(/skills\s*=\s*\[[\s\S]*?\]/, `skills = [${formatted}]`)
+  if (replaced === text) return false
+  writeFileSync(path, replaced, 'utf8')
+  return true
 }
 
 export function mergeConfig(

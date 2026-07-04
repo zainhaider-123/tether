@@ -1,6 +1,6 @@
-import { cpSync, existsSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, readdirSync, rmSync } from 'node:fs'
 import { execSync } from 'node:child_process'
-import { resolve as resolvePath } from 'node:path'
+import { join, resolve as resolvePath } from 'node:path'
 import { ensureStore, skillStorePath, skillIsInstalled, removeSkill, writeMetadata } from './store.js'
 import { loadGlobalConfig } from './config.js'
 import type { SkillMetadata, SkillSource, SkillSourceKind } from './skill.js'
@@ -51,6 +51,31 @@ export function resolveSource(
   throw new Error(`Could not resolve source for skill "${name}". Define it in config.toml or pass a source.`)
 }
 
+function findSkillRoot(dir: string, name: string): string {
+  const has = (p: string) => existsSync(join(p, 'SKILL.md'))
+  if (has(dir)) return dir
+
+  const skillsDir = join(dir, 'skills')
+  if (existsSync(skillsDir)) {
+    const candidates = [name, `${name}-skill`, `${name}-skill-v1`]
+    for (const c of candidates) {
+      const p = join(skillsDir, c)
+      if (has(p)) return p
+    }
+    for (const sub of readdirSync(skillsDir, { withFileTypes: true })) {
+      if (sub.isDirectory() && has(join(skillsDir, sub.name))) return join(skillsDir, sub.name)
+    }
+  }
+
+  for (const sub of readdirSync(dir, { withFileTypes: true })) {
+    if (!sub.isDirectory() || sub.name === '.git') continue
+    const p = join(dir, sub.name)
+    if (has(p)) return p
+  }
+
+  throw new Error(`No SKILL.md found in repository (looked at root, skills/<name>, skills/<name>-skill).`)
+}
+
 export function installSkill(name: string, explicitSrc?: string): InstallResult {
   ensureStore()
   const resolved = resolveSource(name, explicitSrc)
@@ -70,7 +95,17 @@ export function installSkill(name: string, explicitSrc?: string): InstallResult 
     }
     case 'git': {
       if (!resolved.url) throw new Error('Git source missing URL')
-      execSync(`git clone --depth 1 ${resolved.url} "${dest}"`, { stdio: 'pipe' })
+      const tmp = `${dest}.tmp-${Date.now()}`
+      try {
+        execSync(`git clone --depth 1 ${resolved.url} "${tmp}"`, { stdio: 'pipe' })
+        const root = findSkillRoot(tmp, name)
+        if (root !== tmp) {
+          rmSync(dest, { recursive: true, force: true })
+          cpSync(root, dest, { recursive: true })
+        }
+      } finally {
+        rmSync(tmp, { recursive: true, force: true })
+      }
       break
     }
     case 'registry': {
