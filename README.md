@@ -16,7 +16,7 @@ A language-agnostic CLI/TUI tool that manages skills like a package manager. Ski
 git clone https://github.com/zainhaider-123/tether.git
 cd tether
 npm install
-npm run dev
+npm run build
 npm install -g .
 ```
 
