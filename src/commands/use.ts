@@ -1,7 +1,41 @@
+import { existsSync, mkdirSync, readdirSync, readlinkSync, rmSync, symlinkSync, lstatSync } from 'node:fs'
+import { resolve, join } from 'node:path'
 import type { CliArgs } from '../cli.js'
 import { addSkillToProjectConfig, loadProjectConfig } from '../config.js'
 import { readMetadata, readSkillMd, skillIsInstalled, skillStorePath } from '../store.js'
 import type { ResolvedSkill } from '../skill.js'
+
+const AGENT_DIRS = ['.opencode', '.claude', '.agents']
+
+function wireSkills(skills: string[], verbose = true): void {
+  const scanDirs = ['.opencode', '.claude', '.agents']
+  const found: string[] = []
+  for (const d of scanDirs) {
+    if (existsSync(resolve(process.cwd(), d, 'skills'))) found.push(d)
+  }
+  if (found.length === 0) found.push('.opencode')
+
+  for (const dir of found) {
+    const skillsDir = resolve(process.cwd(), dir, 'skills')
+    if (!existsSync(skillsDir)) mkdirSync(skillsDir, { recursive: true })
+    const existing = new Set(
+      readdirSync(skillsDir, { withFileTypes: true })
+        .filter((d) => d.isSymbolicLink() || d.isDirectory())
+        .map((d) => d.name),
+    )
+    for (const name of skills) {
+      const linkPath = join(skillsDir, name)
+      const target = skillStorePath(name)
+      if (existing.has(name) || existsSync(linkPath)) {
+        if (lstatSync(linkPath).isSymbolicLink() && readlinkSync(linkPath) === target) continue
+        rmSync(linkPath, { recursive: true, force: true })
+      }
+      symlinkSync(target, linkPath)
+      if (verbose) console.error(`  ${dir}/skills/${name} → ${target}`)
+    }
+    if (verbose) console.error(`✓ Wired skills into ${dir}/`)
+  }
+}
 
 export async function useCommand(args: CliArgs): Promise<void> {
   const format = args.flags['format'] ?? 'universal'
@@ -65,6 +99,10 @@ export async function useCommand(args: CliArgs): Promise<void> {
     process.exitCode = 1
     return
   }
+
+  // Wire symlinks so agents discover skills natively
+  console.error('Wiring skills into project...')
+  wireSkills(declared)
 
   switch (format) {
     case 'universal':
